@@ -21,6 +21,8 @@ DallasTemperature sensors(&oneWire);
 
 unsigned long previousTime1 = 0;
 
+//git comment
+
 /* BLYNK TIMERS */
 BlynkTimer sensorTimer;
 //BlynkTimer modeTimer;
