@@ -9,7 +9,7 @@ void regulacija_O2();
 void casovnik_pumpa();
 void casovnik_ugas();
 void rezim_dol();
-void ozonatorCycle();
+// void ozonatorCycle();
 void oxygenWithDelay();
 
 #endif

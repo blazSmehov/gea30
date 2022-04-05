@@ -1,7 +1,7 @@
 #include "DO_reg_func.h"
 #include "Modbus_func.h"
 #define EXTERN extern
-#include "constants.h"
+// #include "constants.h"
 
 // Funkcija za pridobitev podatkov iz DO senzorja
 void readDO(float &doValue, float &doSatValue, float &doTempValue){
@@ -146,78 +146,80 @@ void rezim_dol(){
  }
 }
 
-void ozonatorCycle()
-{
-  if (ozoneEnabled == true)
-  { 
-    unsigned long currentMillis = millis();
+// ta funkcija more biti zakomentirana
 
-    // When you turn on Ozone generator there is some delay (cca 10s)
-    if (!ozoneOnDelay && !ozoneAfterDelayOn){
-      //Serial.println("----Ozone 10s counter started----");
-      startOzoneOnDelay = millis();
-      ozoneOnDelay = true;
-    }
-    else if ((currentMillis - startOzoneOnDelay >= ozoneDelay*1000) && ozoneOnDelay)
-    {
-      ozoneOnDelay = false;
-      //Serial.println("Ozone ON after delay.");
-      ozoneAfterDelayOn = true;
+// void ozonatorCycle()
+// {
+//   if (ozoneEnabled == true)
+//   { 
+//     unsigned long currentMillis = millis();
+
+//     // When you turn on Ozone generator there is some delay (cca 10s)
+//     if (!ozoneOnDelay && !ozoneAfterDelayOn){
+//       //Serial.println("----Ozone 10s counter started----");
+//       startOzoneOnDelay = millis();
+//       ozoneOnDelay = true;
+//     }
+//     else if ((currentMillis - startOzoneOnDelay >= ozoneDelay*1000) && ozoneOnDelay)
+//     {
+//       ozoneOnDelay = false;
+//       //Serial.println("Ozone ON after delay.");
+//       ozoneAfterDelayOn = true;
       
-    }
-      //Serial.println("--------------");
-      //Serial.print("currentMillis - previousOzoneMillis: ");
-      //Serial.println(currentMillis - previousOzoneMillis);
+//     }
+//       //Serial.println("--------------");
+//       //Serial.print("currentMillis - previousOzoneMillis: ");
+//       //Serial.println(currentMillis - previousOzoneMillis);
 
-      //Serial.print("ozoneInterval*1000*60: ");
-      //Serial.println(ozoneInterval*1000*60);
-      //Serial.println("--------------");
-      if (((currentMillis - previousOzoneMillis >= ozoneInterval*1000*60)|| (ozoneOnFirstTime)) && ozoneAfterDelayOn  )
-      {
+//       //Serial.print("ozoneInterval*1000*60: ");
+//       //Serial.println(ozoneInterval*1000*60);
+//       //Serial.println("--------------");
+//       if (((currentMillis - previousOzoneMillis >= ozoneInterval*1000*60)|| (ozoneOnFirstTime)) && ozoneAfterDelayOn  )
+//       {
 
-        if (ozoneOnFirstTime){
-          ozoneOnFirstTime = false;
-        }
+//         if (ozoneOnFirstTime){
+//           ozoneOnFirstTime = false;
+//         }
       
-        // if the ozone generator is off turn it on and vice-versa:
-        if (ozoneState == LOW) 
-        {
-          prevOzoneState = ozoneState;
-          ozoneState = HIGH;
-          //Serial.println("Generating ozone");
-        } 
-        else if (ozoneState == HIGH) 
-        {
-          prevOzoneState = ozoneState;
-          ozoneState = LOW;
-          //Serial.println("Not generating O3 - stand by...");
-        }
+//         // if the ozone generator is off turn it on and vice-versa:
+//         if (ozoneState == LOW) 
+//         {
+//           prevOzoneState = ozoneState;
+//           ozoneState = HIGH;
+//           //Serial.println("Generating ozone");
+//         } 
+//         else if (ozoneState == HIGH) 
+//         {
+//           prevOzoneState = ozoneState;
+//           ozoneState = LOW;
+//           //Serial.println("Not generating O3 - stand by...");
+//         }
         
-        if (ozoneState != prevOzoneState)
-        {
-          digitalWrite(OZONE_CONTACTOR, ozoneState);
-        }
+//         if (ozoneState != prevOzoneState)
+//         {
+//           digitalWrite(OZONE_CONTACTOR, ozoneState);
+//         }
   
-      previousOzoneMillis = currentMillis;
+//       previousOzoneMillis = currentMillis;
       
-      }
+//       }
 
   
-  }
-  else if (ozoneEnabled == false)
-  {
-    if (digitalRead(OZONE_CONTACTOR) == HIGH){
-      digitalWrite(OZONE_CONTACTOR, LOW); 
+//   }
+//   else if (ozoneEnabled == false)
+//   {
+//     if (digitalRead(OZONE_CONTACTOR) == HIGH){
+//       digitalWrite(OZONE_CONTACTOR, LOW); 
       
-    }
-    ozoneAfterDelayOn = false;
-    ozoneOnDelay = false;
-    previousOzoneMillis = 0;
-    ozoneState = LOW;
-    ozoneOnFirstTime = true;
+//     }
+//     ozoneAfterDelayOn = false;
+//     ozoneOnDelay = false;
+//     previousOzoneMillis = 0;
+//     ozoneState = LOW;
+//     ozoneOnFirstTime = true;
     
-  }
-}
+//   }
+// }
 
 // Oxygen generator ON with delay
 void oxygenWithDelay()

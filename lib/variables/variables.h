@@ -1,11 +1,9 @@
 #ifndef VARIABLES_H
 #define VARIABLES_H
 #include <ModbusMaster.h>
-#include <DallasTemperature.h>
-#include <OneWire.h>
 #include <RTCZero.h>
 #define EXTERN extern
-#include "constants.h"
+#include "./../../include/constants.h"
 
 //
 // class variables
@@ -22,6 +20,16 @@ EXTERN volatile bool pumpOn;
 
 EXTERN volatile int pumpState;
 EXTERN volatile int lastPumpState;
+EXTERN volatile int pressure_status;
+
+EXTERN volatile bool pressure_reset;
+EXTERN volatile bool timingMinPressure;
+EXTERN volatile bool timingMaxPressure;
+
+EXTERN volatile unsigned long pressureMinTimer;
+EXTERN volatile unsigned long pressureMaxTimer;
+EXTERN volatile unsigned long pressureTimerMax;
+EXTERN volatile unsigned long pressureTimerMin;
 
 //
 // variables for OXYGEN
@@ -80,19 +88,35 @@ EXTERN volatile double regulacija_min;
 EXTERN volatile int stevec_pumpa;
 EXTERN volatile int stevec_off;
 
+// //
+// // variables for ORP regulation
+// //
+
+// EXTERN volatile bool reg_enable_ORP;
+// EXTERN volatile bool potek_dol_ORP;
+// EXTERN volatile bool potek_gor_ORP;
+// EXTERN volatile bool rezim_dol1_ORP;
+// EXTERN volatile bool potek_gor_ORP;
+// EXTERN volatile bool potek_dol_ORP;
+// EXTERN volatile bool casovnik_ORP;
+// EXTERN volatile bool casovnik_off_ORP;
+// EXTERN volatile bool Pumpa_ugas_ORP;
+// EXTERN volatile bool prva_iteracija_ORP;
+
+// EXTERN volatile double regulacija_max_ORP;
+// EXTERN volatile double regulacija_min_ORP;
+
+// EXTERN volatile int stevec_pumpa_ORP;
+// EXTERN volatile int stevec_off_ORP;
+
 //
 // variables for wifi connection
 //
 
 EXTERN volatile bool startTimer;
 
-EXTERN char server[];   
-EXTERN char ssid[];
-EXTERN char pass[];
-
 EXTERN volatile int ReCnctFlag;  
 EXTERN volatile int ReCnctCount;  
-EXTERN int port;
 EXTERN volatile int stevec_wifi;
 
 //EXTERN const int RSSI_MAX;    // define maximum straighten of signal in dBm
@@ -129,17 +153,17 @@ EXTERN volatile int mOnT3;              // Turn machine ON by timer 3
 EXTERN volatile int mOnT4;              // Turn machine ON by timer 4
 EXTERN volatile int mOnT5;              // Turn machine ON by timer 5
 
-//
-// variables for temperature sensors
-//
+// //
+// // variables for temperature sensors
+// //
 
-EXTERN uint8_t tempAdrPump[8];  // address of pump temp sensor
-EXTERN uint8_t tempAdrOzone[8]; // address of ozone temp sensor
-EXTERN uint8_t tempAdrIoT[8];   // address of IoT temp sensor
+// EXTERN uint8_t tempAdrPump[8];  // address of pump temp sensor
+// EXTERN uint8_t tempAdrOzone[8]; // address of ozone temp sensor
+// EXTERN uint8_t tempAdrIoT[8];   // address of IoT temp sensor
 
-EXTERN volatile float tempPump;   // Pump temp
-EXTERN volatile float tempCompressor;  // Ozonator temp tempCompressor
-EXTERN volatile float tempCabinet;    // IoT temp
+// EXTERN volatile float tempPump;   // Pump temp
+// EXTERN volatile float tempCompressor;  // Ozonator temp tempCompressor
+// EXTERN volatile float tempCabinet;    // IoT temp
 
 //
 // variables for safety functions
@@ -194,5 +218,11 @@ EXTERN volatile unsigned int powerLimitTemp; // Temperature where we change min 
 
 EXTERN volatile int RSSI_MAX;    // define maximum straighten of signal in dBm
 EXTERN volatile int RSSI_MIN;   // define minimum strength of signal in dBm
+
+//
+// FLAG for operating
+//
+
+EXTERN volatile int machineOperating;
 
 #endif

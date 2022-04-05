@@ -1,14 +1,3 @@
-// Popravljeni temperaturni senzorji
-// Masina IoT nova Italija z ORP
-#define BLYNK_FIRMWARE_VERSION        "0.1.27"
-
-#define BLYNK_PRINT Serial
-//#define BLYNK_DEBUG
-
-#define APP_DEBUG
-
-#define ONE_WIRE_BUS 0
-
 #define AUTO 18
 #define MAN 19
 #define FLOAT_SWITCH 20
@@ -23,9 +12,9 @@
 #define OZONE_CONTACTOR 1
 #define RESERVE_CONTACTOR 4
 
-#define ONE_WIRE_BUS 0 // Data wire is plugged into digital pin 0 on the Arduino
-/* HARDWARE DEFINES - END */
-// Setup a oneWire instance to communicate with any OneWire device
+// #define ONE_WIRE_BUS 0 // Data wire is plugged into digital pin 0 on the Arduino
+// /* HARDWARE DEFINES - END */
+// // Setup a oneWire instance to communicate with any OneWire device
 
 #define PRESSURE_PIN A0
 //#endif
@@ -40,3 +29,4 @@
 #define ORP_PIN A2
 #define VOLTAGE 3.3    //system voltage
 #define ArrayLenth  40    //times of collection
+
