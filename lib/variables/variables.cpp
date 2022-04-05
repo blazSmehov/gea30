@@ -1,10 +1,6 @@
-#include <ModbusMaster.h>
-#include <DallasTemperature.h>
-#include <OneWire.h>
-#include <RTCZero.h>
-#include <Arduino.h>
+#include "variables.h"
 #define EXTERN extern
-#include "constants.h"
+// #include "constants.h"
 
 //
 // arduino class variables
@@ -21,6 +17,16 @@ volatile bool pumpOn;
 
 volatile int pumpState = 0;
 volatile int lastPumpState = 0;
+volatile int pressure_status = 0;
+
+volatile bool pressure_reset = false;
+volatile bool timingMinPressure = false;
+volatile bool timingMaxPressure = false;
+
+volatile unsigned long pressureMinTimer;
+volatile unsigned long pressureMaxTimer;
+volatile unsigned long pressureTimerMax;
+volatile unsigned long pressureTimerMin;
 
 //
 // variables for OXYGEN
@@ -32,6 +38,7 @@ volatile bool oxygenAfterDelayOn = false;
 volatile bool oxygenOnFirstTime = true;
 
 volatile uint16_t oxygenDelay = 30; 
+// volatile int oxygenDelay = 30; 
 
 unsigned long startOxygenOnDelay; 
     
@@ -77,21 +84,33 @@ volatile double regulacija_min;
 volatile int stevec_pumpa;
 volatile int stevec_off;
 
+// //
+// // variables for ORP regulation
+// //
+
+// volatile bool reg_enable_ORP;
+// volatile bool potek_dol_ORP;
+// volatile bool potek_gor_ORP;
+// volatile bool rezim_dol1_ORP;
+// volatile bool casovnik_ORP;
+// volatile bool casovnik_off_ORP;
+// volatile bool Pumpa_ugas_ORP;
+// volatile bool prva_iteracija_ORP;
+
+// volatile double regulacija_max_ORP;
+// volatile double regulacija_min_ORP;
+
+// volatile int stevec_pumpa_ORP;
+// volatile int stevec_off_ORP;
+
 //
 // variables for wifi connection
 //
 
 volatile bool startTimer = false;
 
-char server[] = "blynk.cloud";   
-char ssid[] = "WBSTlab";
-char pass[] = "br3zg3sl4";
-//char ssid[] = "AndroidAP6474";
-//char pass[] = "jankokmet";
-
 volatile int ReCnctFlag;  
 volatile int ReCnctCount = 0;  
-int port = 80;
 volatile int stevec_wifi = 0;
 
 
@@ -126,17 +145,16 @@ volatile int mOnT3 = 0;              // Turn machine ON by timer 3
 volatile int mOnT4 = 0;              // Turn machine ON by timer 4
 volatile int mOnT5 = 0;              // Turn machine ON by timer 5
 
-//
-// variables for temperature sensors
-//
+// //
+// // variables for temperature sensors
+// //
+// uint8_t tempAdrPump[8] = { 0x28, 0x42, 0xAA, 0xC7, 0x0B, 0x00, 0x00, 0xF5 };  // address of pump temp sensor
+// uint8_t tempAdrOzone[8] = { 0x28, 0x42, 0xAA, 0xC7, 0x0B, 0x00, 0x00, 0xF5 }; // address of ozone temp sensor
+// uint8_t tempAdrIoT[8] = { 0x28, 0x42, 0xAA, 0xC7, 0x0B, 0x00, 0x00, 0xF5 };  // address of IoT temp sensor
 
-uint8_t tempAdrPump[8] = { 0x28, 0x42, 0xAA, 0xC7, 0x0B, 0x00, 0x00, 0xF5 };  // address of pump temp sensor
-uint8_t tempAdrOzone[8] = { 0x28, 0x1E, 0xD2, 0xC7, 0x0B, 0x00, 0x00, 0xF5 }; // address of ozone temp sensor
-uint8_t tempAdrIoT[8] = { 0x28, 0x6F, 0x5F, 0xCA, 0x0B, 0x00, 0x00, 0xE0 };   // address of IoT temp sensor
-
-volatile float tempPump;   // Pump temp
-volatile float tempCompressor;  // Ozonator temp tempCompressor
-volatile float tempCabinet;    // IoT temp
+// volatile float tempPump;   // Pump temp
+// volatile float tempCompressor;  // Ozonator temp tempCompressor
+// volatile float tempCabinet;    // IoT temp
 
 //
 // variables for safety functions
@@ -186,8 +204,14 @@ volatile float maxTempPump = 80.0;
 volatile float maxTempCompressor = 95.0;
 volatile float maxtempCabinet = 80.0;
 
-volatile unsigned int maxPower = 2500; // Set the maximum power allowed
+volatile unsigned int maxPower = 3500; // Set the maximum power allowed
 volatile unsigned int powerLimitTemp = 66; // Temperature where we change min power becaue power of compressor goes down as it's temp raises
 
 volatile int RSSI_MAX =-50;    // define maximum straighten of signal in dBm
 volatile int RSSI_MIN =-100;   // define minimum strength of signal in dBm
+
+//
+// FLAG for operating
+//
+
+volatile int machineOperating = 1;

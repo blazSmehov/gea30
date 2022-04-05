@@ -1,8 +1,8 @@
 #include "Modbus_func.h"
-#include <Arduino.h>
+// #include <Arduino.h>
 #define EXTERN extern
 #include "variables.h"
-#include "constants.h"
+// #include "constants.h"
 
 bool getResultMsg(ModbusMaster *modbus, uint8_t result) 
 { 
