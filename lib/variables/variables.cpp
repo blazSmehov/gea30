@@ -214,4 +214,10 @@ volatile int RSSI_MIN =-100;   // define minimum strength of signal in dBm
 // FLAG for operating
 //
 
-volatile int machineOperating = 1;
+volatile int machineOperating = 2;
+
+//
+// global variable for Blynk event do regulation 
+//
+
+volatile bool signalBlynkDo = false;

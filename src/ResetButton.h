@@ -15,13 +15,11 @@ void button_change(void)
   bool buttonState = digitalRead(BOARD_BUTTON_PIN);
 #endif
 
-int button = 10;
-
-  if (buttonState && !g_buttonPressed && button == 1) {
+  if (buttonState && !g_buttonPressed) {
     g_buttonPressTime = millis();
     g_buttonPressed = true;
     DEBUG_PRINT("Hold the button for 10 seconds to reset configuration...");
-  } else if (!buttonState && g_buttonPressed && button == 2) {
+  } else if (!buttonState && g_buttonPressed) {
     g_buttonPressed = false;
     uint32_t buttonHoldTime = millis() - g_buttonPressTime;
     if (buttonHoldTime >= BUTTON_HOLD_TIME_ACTION) {

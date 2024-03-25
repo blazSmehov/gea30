@@ -225,4 +225,10 @@ EXTERN volatile int RSSI_MIN;   // define minimum strength of signal in dBm
 
 EXTERN volatile int machineOperating;
 
+//
+// global variable for Blynk event do regulation 
+//
+
+EXTERN volatile bool signalBlynkDo;
+
 #endif

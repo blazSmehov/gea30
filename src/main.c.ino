@@ -1,5 +1,6 @@
-#define BLYNK_TEMPLATE_ID "TMPLU393uBN1"
-#define BLYNK_DEVICE_NAME "GEASmartLab"
+#define BLYNK_TEMPLATE_ID "TMPL60vVWn3M"
+#define BLYNK_TEMPLATE_NAME "GEASmartCopy"
+#define BLYNK_DEVICE_NAME "GEA 30 wbstg0262024"
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <RTCZero.h>
@@ -7,11 +8,13 @@
 #include "DO_reg_func.h"
 #include "machine_func.h"
 #include "Modbus_func.h"
+#include <ArduinoRS485.h> 
+#include <ArduinoModbus.h>
 #define EXTERN extern
 #include "variables.h"
 #include "constants.h"
 
-#define BLYNK_FIRMWARE_VERSION        "0.1.27"
+#define BLYNK_FIRMWARE_VERSION        "0.1.30"
 
 #define BLYNK_PRINT Serial
 #define APP_DEBUG
@@ -35,11 +38,9 @@ unsigned long previousTime1 = 0;
 
 //
 // variables for temperature sensors
-//
-
-uint8_t tempAdrPump[8] = { 0x28, 0xA6, 0x2D, 0xC8, 0x0B, 0x00, 0x00, 0x00 };   // address of IoT temp sensor
-uint8_t tempAdrOzone[8] = { 0x28, 0x86, 0xA9, 0xCA, 0x0B, 0x00, 0x00, 0x65 }; // address of ozone temp sensor
-uint8_t tempAdrIoT[8] = { 0x28, 0x60, 0x25, 0xC9, 0x0B, 0x00, 0x00, 0x9C };  // address of pump temp sensor
+uint8_t tempAdrPump[8] = { 0x28, 0x56, 0x6D, 0xC9, 0x0B, 0x00, 0x00, 0x14 };  // address of pump temp sensor
+uint8_t tempAdrOzone[8] = { 0x28, 0x37, 0xDD, 0xC8, 0x0B, 0x00, 0x00, 0x20 }; // address of ozone temp sensor
+uint8_t tempAdrIoT[8] = { 0x28, 0xEF, 0x1E, 0xC9, 0x0B, 0x00, 0x00, 0xA6 };   // address of IoT temp sensor
 
 float tempPump;   // Pump temp
 float tempCompressor;  // Ozonator temp tempCompressor
@@ -61,12 +62,13 @@ void pressureProtection();
 void regulacija_ORP();
 void ozonatorCycle();
 void printTime();
+void readHoldingRegisterValues1();
+// void writeHoldingRegisterValue();
 
 // declarations, to zbriši pol
 
 bool blynk_prva_iteracija = true;
 bool blynk_druga_iteracija = false;
-
 
 /* BLYNK TIMERS */
 BlynkTimer sensorTimer;
@@ -96,70 +98,86 @@ BLYNK_WRITE(V0)
   }
 }
 
+// global flag
+
+bool oxygenAndOzoneEnabled = false;
+bool oxygenOnEnabled = false;
 
 // ON/OFF button in app for oxygen enabled/disabled    
 BLYNK_WRITE(V1)
 {
-  if (machineOperating == 2) {
-
-    // If pump is working, you can turn O and O3 generators ON
-    if (pumpOn == true && machineMode == 1 && appMode == 0)
-    {
+  // If pump is working, you can turn O and O3 generators ON
+  if (pumpOn == true && machineMode == 1 && appMode == 0)
+  {
     
-      if (param.asInt() == 1 )
-      {
-        oxygenEnabled = true;
-        Blynk.virtualWrite(17, 1); // Oxygen enabled
-        // Serial.println("Oxygen MAN ON!");
-        
-      }
-      else if (param.asInt() == 0)
-      {
-        oxygenEnabled = false; // ???
-        Blynk.virtualWrite(17, 0); // Oxygen disabled
-        digitalWrite(OXYGEN_CONTACTOR, LOW);
-        // Serial.println("Oxygen OFF");
-        
-      }
+    if (oxygenAndOzoneEnabled){
+      return;
     }
-    else if (pumpOn == false && machineMode == 1 && appMode == 0)
+    else if (param.asInt() == 1 )
     {
-      oxygenEnabled = false;
+      oxygenEnabled = true;
+      Blynk.virtualWrite(17, 1); // Oxygen enabled
+      oxygenOnEnabled = true;
+      // Serial.println("Oxygen MAN ON!");
+      
+    }
+    else if (param.asInt() == 0)
+    {
+      oxygenEnabled = false; // ???
+      Blynk.virtualWrite(17, 0); // Oxygen disabled
       digitalWrite(OXYGEN_CONTACTOR, LOW);
-      Blynk.virtualWrite(1, 0);
-      Blynk.virtualWrite(17, 0); // Oxygen disabled   
+      oxygenOnEnabled = false;
+      // Serial.println("Oxygen OFF");
+      
     }
-    else
-    {
-      Blynk.virtualWrite(1, 0);
-    }
+  }
+  else if (pumpOn == false && machineMode == 1 && appMode == 0)
+  {
+    oxygenEnabled = false;
+    digitalWrite(OXYGEN_CONTACTOR, LOW);
+    Blynk.virtualWrite(1, 0);
+    Blynk.virtualWrite(17, 0); // Oxygen disabled   
+  }
+  else
+  {
+    Blynk.virtualWrite(1, 0);
   }
 }
     
-// ON/OFF button in app for ozone enabled/disabled    
+// ON/OFF button in app for ozone + oxygen enabled/disabled    
 BLYNK_WRITE(V2)
 {  
   
   if (pumpOn == true && machineMode == 1 && appMode == 0)
   {
-    if (param.asInt() == 1)
+    if (oxygenOnEnabled) {
+      return;
+    }
+    else if (param.asInt() == 1)
     {
       ozoneEnabled = true;
+      oxygenEnabled = true;
+      oxygenAndOzoneEnabled = true;
       Blynk.virtualWrite(18, 1); // Ozone enabled
-      // Serial.println("Ozone ON!");
+      Blynk.virtualWrite(17, 1); // Oxygen enabled
     }
     else if (param.asInt() == 0)
     {
       ozoneEnabled = false;
+      oxygenEnabled = false;
+      oxygenAndOzoneEnabled = false;
       previousOzoneMillis = 0;
       Blynk.virtualWrite(2, 0);   // Ozone button OFF
-      Blynk.virtualWrite(18, 0); // Ozone disabled
-      // Serial.println("Ozone OFF");
+      Blynk.virtualWrite(18, 0);  // Ozone disabled
+      digitalWrite(OXYGEN_CONTACTOR, LOW);
+      Blynk.virtualWrite(1, 0);
+      Blynk.virtualWrite(17, 0); // Oxygen disabled   
     }
   }
   else
   {
     Blynk.virtualWrite(2, 0);
+    Blynk.virtualWrite(1, 0);
   }
 }
 
@@ -168,13 +186,6 @@ BLYNK_WRITE(V3)
 {
   statusSwitch = param.asString();
 }
-
-// Slider widget for ozone generator interval setup
-// BLYNK_WRITE(V7)
-// {
-//   ozoneInterval = param.asInt();
-  
-// }
 
 BLYNK_WRITE(V12) {
   switch (param.asInt()) {
@@ -214,55 +225,40 @@ BLYNK_WRITE(V12) {
     case 3: {
       // Serial.println("Mode selection: REG");
       
-      appMode = 4;
+      appMode = 3;
+
       reg_enable = true;
       Pumpa_ugas = true;
-      
 
       break;
     }
-    // case 4: {
-    //   // Serial.println("Mode selection: REG");
-    //   appMode = 4;
-
-    //   rezim_dol1 = false; 
-    //   reg_enable = false;
-    //   potek_dol = false;
-    //   potek_gor = false;
-    //   break;
-    // }
   }
 }
+
+// GEA devices have autoCombinations 0 and 1 (O3 + O2 and O2)
 
 // Combination when machine is working with timers
 BLYNK_WRITE(V16){
   switch (param.asInt()) {
     case 0:
-      if(machineOperating == 2){
-        //Serial.println("Auto combination: Pump + O3 + O2");
-        autoCombination = 0; // Pump + O3 + O2
-      }
+      //Serial.println("Auto combination: Pump + O3 + O2");
+      autoCombination = 0; // Pump + O3 + O2
+    
       break;
     case 1: {
-      //Serial.println("Auto combination: Pump + O3");
+      //Serial.println("Auto combination: Pump + O2");
       autoCombination = 1; // Pump + O3
+      
       break;
     }
-    case 2: {
-      if(machineOperating == 2){
-        //Serial.println("Auto combination: Pump + O2");
-        autoCombination = 2; // Pump + O2
-      }
-      break;
-    }    
   }
 }
 
 // Oxygen delay set in seconds
 BLYNK_WRITE(V19){
-  if (machineOperating == 2){
-    oxygenDelay = param.asInt();
-  }
+
+  oxygenDelay = param.asInt();
+  
 }
 
 // Timer 1
@@ -426,24 +422,20 @@ BLYNK_CONNECTED()
   checkContactorState();
   sensorTimer.setInterval(711L, autoManMode);
   sensorTimer.setInterval(1023L, checkContactorState);
-
-  if (machineOperating == 2) {
-    sensorTimer.setInterval(1235L, oxygenWithDelay);
-    sensorTimer.setInterval(6359L, callDoSensor);
-    sensorTimer.setInterval(1000L, regulacija_O2);
-  }
+  sensorTimer.setInterval(1235L, oxygenWithDelay);
+  sensorTimer.setInterval(6359L, callDoSensor);
+  sensorTimer.setInterval(1000L, regulacija_O2);
   sensorTimer.setInterval(1522L, ozonatorCycle);
   sensorTimer.setInterval(3109L, checkTime);
   sensorTimer.setInterval(10307L, sendSensorValues);
   sensorTimer.setInterval(12018L, powerProtection);
   sensorTimer.setInterval(15099L, temperatureProtection);
   sensorTimer.setInterval(1000L, pressureProtection);
-  sensorTimer.setInterval(1000L, regulacija_ORP);
+  sensorTimer.setInterval(6331L, readHoldingRegisterValues1);
 }
 
 void setup()
 {
-  bool reg_enable = true;
   prevMode = 0; // Previous mode of AUTO/OFF/MAN switch on machine
   sensors.begin();  // Start up the DS18B20 library
   
@@ -463,8 +455,12 @@ void setup()
   Serial1.begin(9600);
   delay(1000);
 
-  modbus.begin(Slave_ID, Serial1);
-  modbus.idle(yield);
+  // modbus.begin(Slave_ID, Serial1);
+  // modbus.idle(yield);
+  if (!ModbusRTUClient.begin(9600)) {
+    Serial.println("Failed to start Modbus RTU Client!");
+    while (1);
+  }
 
   // Postavimo RS_EN na 0
   modbus.preTransmission(preTransmission);
@@ -475,6 +471,33 @@ void setup()
   Blynk.virtualWrite(10, 0);
   Blynk.virtualWrite(9, 0);
   Blynk.virtualWrite(8, 0);
+
+}
+
+float vrednostORP = 0;
+
+// int id = 0;
+
+void readHoldingRegisterValues1() {
+  // Serial.print("Reading Input Register values ... ");
+  // Serial.print("im am trying this id: ");
+  // Serial.println(id);
+
+  // read 10 Input Register values from (slave) id 42, address 0x00
+  if (!ModbusRTUClient.requestFrom(40, HOLDING_REGISTERS, 0x09, 1)) {
+    Serial.print("failed! ");
+    Serial.println(ModbusRTUClient.lastError());
+  } else {
+    // Serial.println("success");
+
+    while (ModbusRTUClient.available()) {
+      vrednostORP = 0.1 * ModbusRTUClient.read();
+      // Serial.print("vrednost orp: ");
+      // Serial.println(vrednostORP);
+      }
+    // Serial.println();
+  }
+  // id++;
 }
 
 void loop() {
@@ -483,7 +506,7 @@ void loop() {
 
   if (blynk_prva_iteracija == true){
     BlynkEdgent.run();
-    Serial.println("zacetek :(");
+    // Serial.println("zacetek :(");
   }
 
   if ((WiFi.status() == WL_CONNECTED)&&(blynk_druga_iteracija == true)){
@@ -507,14 +530,6 @@ void loop() {
     //Serial.println("Blynk diconnected");
     blynkConnected = 0;
   }
-
-  unsigned long currentTime1 = millis();
-
-  if((currentTime1 - previousTime1 >= 5000)){
-    // if(blynk_druga_iteracija == true) Serial.println("druga iteracija");
-    // if(WiFi.status() != WL_CONNECTED) Serial.println("status ni connected");
-    previousTime1 = currentTime1;
-  }
 }
 
 /* -- --*/
@@ -536,11 +551,6 @@ void requestTemperature(){
   tempPump = sensors.getTempC(tempAdrPump);
   tempCompressor = sensors.getTempC(tempAdrOzone);
   tempCabinet = sensors.getTempC(tempAdrIoT);
-
-  // Serial.println("temperature so: (pumpa, kompresor, kabinet");
-  // Serial.println(tempPump);
-  // Serial.println(tempCompressor);
-  // Serial.println(tempCabinet);
 }
 
 void sendSensorValues(){
@@ -553,17 +563,20 @@ void sendSensorValues(){
 
   Blynk.virtualWrite(4, totalPower);
   Blynk.virtualWrite(5, tempPump);
+  // should be virtual write 6, but is changed for device FAUNA
   Blynk.virtualWrite(6, tempCompressor); // Prev. tempCompressor
   Blynk.virtualWrite(14, tempCabinet);
   Blynk.virtualWrite(33, pressure);
-  Blynk.virtualWrite(34, orpValue);
-
+  Blynk.virtualWrite(34, vrednostORP);
 }
 
 void callDoSensor(){
   float doValue, doSat, doTemp;
   if ( blynkConnected == 1){
     readDO(doValue, doSat, doTemp);
+    // Serial.println("doValue");
+    // Serial.println(doValue);
+    // Serial.println(doTemp);
     
     Blynk.virtualWrite(30, doValue);
     Blynk.virtualWrite(31, doSat);
@@ -582,8 +595,6 @@ void doLoop(){
   }
 }
 
-
-
 // Turn on machine by Timers
 void onByTimers(){
     if (appMode == 2 && machOn == 1 && autoCombination == 0)
@@ -593,13 +604,6 @@ void onByTimers(){
       machineOnAuto();
     }
     else if (appMode == 2 && machOn == 1 && autoCombination == 1)
-    {
-      pumpOn = false;
-      Blynk.logEvent("machine_on_o3");
-      machineOnAutoOzone();
-      
-    }
-    else if (appMode == 2 && machOn == 1 && autoCombination == 2)
     {
       pumpOn = false;
       Blynk.logEvent("machine_on_o2");
@@ -739,13 +743,12 @@ void checkContactorState()
     Blynk.virtualWrite(9, pumpState);
     lastPumpState = pumpState;
   }
-  if (machineOperating == 2){
-    if (digitalRead(OXYGEN_CONTACTOR) != lastOxygenState)
-    {
-      oxygenState = digitalRead(OXYGEN_CONTACTOR);
-      Blynk.virtualWrite(10, oxygenState);
-      lastOxygenState = oxygenState;
-    }
+
+  if (digitalRead(OXYGEN_CONTACTOR) != lastOxygenState)
+  {
+    oxygenState = digitalRead(OXYGEN_CONTACTOR);
+    Blynk.virtualWrite(10, oxygenState);
+    lastOxygenState = oxygenState;
   }
 
   if (digitalRead(OZONE_CONTACTOR) != lastOzoneState)
@@ -782,21 +785,13 @@ void autoManMode(){
     {
       Blynk.virtualWrite(3, "AUTO - BUBBLING O3+O2");
     }
-    else if (pumpState == 1 && appMode == 2 && autoCombination == 1 && (statusSwitch != "** AUTO - BUBBLING O3 **")&& (statusSwitch == "*** AUTO - STAND BY ***"))
-    {
-      Blynk.virtualWrite(3, "** AUTO - BUBBLING O3 **");
-    }
-    else if (pumpState == 1 && appMode == 2 && autoCombination == 2 && (statusSwitch != "** AUTO - BUBBLING O2 **")&& (statusSwitch == "*** AUTO - STAND BY ***"))
+    else if (pumpState == 1 && appMode == 2 && autoCombination == 1 && (statusSwitch != "** AUTO - BUBBLING O2 **")&& (statusSwitch == "*** AUTO - STAND BY ***"))
     {
       Blynk.virtualWrite(3, "** AUTO - BUBBLING O2 **");
     }
     else if(appMode == 3 && (statusSwitch != "** DO REGULATION **"))
     {
       Blynk.virtualWrite(3, "** DO REGULATION **");
-    }
-    else if(appMode == 4 && (statusSwitch != "** ORP REGULATION **"))
-    {
-      Blynk.virtualWrite(3, "** ORP REGULATION **");
     }
     else if (pumpState == 0 && (statusSwitch != "*** AUTO - STAND BY ***") && appMode != 3)
     {
@@ -1063,23 +1058,6 @@ void machineOnAuto()
     Blynk.virtualWrite(17, 1); // Oxygen enabled LED
     Blynk.virtualWrite(18, 1); // Ozone enabled LED
   }
-    
-}
-
-// // Function to turn machine ON using Automations in pump+O3 MODE
-void machineOnAutoOzone()
-{
-  if (machineMode == 1)
-  {
-    oxygenEnabled = false;
-    ozoneEnabled = true;
-    digitalWrite(OXYGEN_CONTACTOR, LOW);
-    digitalWrite(PUMP_CONTACTOR, HIGH);
-    Blynk.virtualWrite(17, 0); // Oxygen enabled LED
-    Blynk.virtualWrite(18, 1); // Ozone enabled LED
-    
-  }
-    
 }
 
 // // Function to turn machine ON using Automations in pump+O2 MODE
@@ -1099,16 +1077,10 @@ void machineOn(){
   if (machineMode == 1)
   {
     pumpOn = true;
-    ozoneEnabled = true;
-    oxygenEnabled = true;
     
     digitalWrite(PUMP_CONTACTOR, HIGH);
     
     Blynk.virtualWrite(0, 1);
-    Blynk.virtualWrite(1, 1);
-    Blynk.virtualWrite(2, 1);
-    Blynk.virtualWrite(17, 1); // Oxygen enabled LED
-    Blynk.virtualWrite(18, 1); // Ozone enabled LED
   } 
 }
 
@@ -1120,18 +1092,19 @@ int ozoneOnInterval = 10;               // Interval of ozonator ON in minutes
 int ozoneOffInterval = 10;              // Interval of ozonator OFF in minutes
 
 /* Choose right virtual pin number */
-BLYNK_WRITE(V49)
+BLYNK_WRITE(V7)
 {  
     
   ozoneOnInterval = param.asInt();
-  
-}
-/* Choose right virtual pin number */
-BLYNK_WRITE(V50)
-{
   ozoneOffInterval = param.asInt();
   
 }
+// /* Choose right virtual pin number */
+// BLYNK_WRITE(V50)
+// {
+//   ozoneOffInterval = param.asInt();
+  
+// }
 
 int ozState = 0; // State of ozonator switch case
 unsigned long previousOzoneOnMillis = 0;  // Previous ozone millis when ozone generator was turned on
@@ -1225,219 +1198,10 @@ void ozonatorCycle()
   if (ozState == 30){
       /* Turn on O3 generator if state is 30 */
       digitalWrite(OZONE_CONTACTOR, HIGH);
-     // Serial.println("ozonator deluje");
+     Serial.println("ozonator deluje");
     }
     else{
       digitalWrite(OZONE_CONTACTOR, LOW);
-      //Serial.println("ozonator ne deluje");
+      Serial.println("ozonator ne deluje");
     }
-}
-
-// zakomentirana koda za orp regulacijo 
-
-int regime;
-unsigned long currentMillisORP;
-
-unsigned long previousMillisOnORP;
-unsigned long cycleOnORP = 60;
-
-unsigned long previousMillisMaxOffORP;
-unsigned long cycleMaxOffORP = 1;
-
-unsigned long previousMillisMinOnORP;
-unsigned long cycleMinOnORP = 60;
-
-unsigned long previousMillisMinOn;
-unsigned long cycleMinOff = 2;
-
-unsigned long previousMillisMinRead;
-unsigned long cycleMinRead = 30;
-
-unsigned long previousMillisMaxOn;
-unsigned long cycleMaxOff = 2;
-
-unsigned long previousMillisMaxRead;
-unsigned long cycleMaxRead = 30;
-
-double regulacija_max_ORP;
-double regulacija_min_ORP;
-
-
-BLYNK_WRITE(V51){
-  regulacija_max_ORP = param.asDouble();
-}
-BLYNK_WRITE(V52){
-  regulacija_min_ORP = param.asDouble();
-}
-
-double readORPValue;
-
-bool firstIterationORP = true;
-
-void regulacija_ORP(){
-
-  Serial.println("regulacija tece");
-
-  Blynk.virtualWrite(54, appMode);
-
-  if ((appMode == 4) && (firstIterationORP)) {
-
-    Blynk.virtualWrite(53,9);
-    firstIterationORP = false;
-    readORPValue = orpValue;
-
-    Serial.println("zacetek regulacije");
-    regime = 0;
-
-    }
-
-  else if(appMode != 4) regime = 50;
-
-  switch (regime) {
-
-  case 0:
-
-      Blynk.virtualWrite(53,0);
-      previousMillisOnORP = millis();
-      previousMillisMinOnORP = millis();
-
-      Serial.println("bere se vrednost ORP");
-
-      if ((regulacija_min_ORP < readORPValue) && (regulacija_max_ORP > readORPValue)) regime = 2;
-      else if (regulacija_min_ORP > readORPValue) regime = 1;
-      else regime = 2;
-
-    break;
-
-  case 1:
-
-      // everything turns on
-      Blynk.virtualWrite(53,1);
-
-      if(pumpOn == false){
-        pumpOn = true;
-        digitalWrite(PUMP_CONTACTOR,HIGH);
-      }
-
-      oxygenEnabled = true;
-      ozoneEnabled = true;
-      Serial.println("vse se prizge za 1 uro");
-
-      currentMillisORP = millis();
-
-      if (currentMillisORP - previousMillisMinOnORP > cycleMinOnORP*1000*60) {
-        previousMillisMinOn = millis();
-        regime = 10;
-      }
-    break;
-
-  case 2:
-
-      // ORP value is sufficient or over the limit, actuators are turning off
-      Blynk.virtualWrite(53,2);
-
-      if (pumpOn == true){
-        pumpOn = false;
-        digitalWrite(PUMP_CONTACTOR,LOW);
-      }
-
-      oxygenEnabled = false;
-      ozoneEnabled = false;
-      Serial.println("vse se ugasne za 1 uro");
-
-      currentMillisORP = millis();
-
-      if (currentMillisORP - previousMillisOnORP > cycleOnORP*1000*60) {        
-        previousMillisMaxOffORP = millis();
-        regime = 20;
-      }
-    break;
-
-  case 10: 
-
-      pumpOn = false;
-      Blynk.virtualWrite(53,10);
-      digitalWrite(PUMP_CONTACTOR,LOW);
-      oxygenEnabled = false;
-      ozoneEnabled = false;
-
-      Serial.println("vse se ugasne za 2 min");
-
-      currentMillisORP = millis();
-
-      if (currentMillisORP - previousMillisMinOn > cycleMinOff*1000*60) {
-        
-        previousMillisMinRead = millis();
-        regime = 11;
-      }
-    break;
-
-  case 11: 
-
-      readORPValue = orpValue;
-      Blynk.virtualWrite(53,11);
-
-      Serial.println("vrednost se bere za 10 sekund");
-
-      currentMillisORP = millis();
-
-      if (currentMillisORP - previousMillisMinRead > cycleMinRead*1000) regime = 0;
-
-    break;
-
-  case 20: 
-
-      pumpOn = true;
-      digitalWrite(PUMP_CONTACTOR,HIGH);
-      Blynk.virtualWrite(53,20);
-
-      currentMillisORP = millis();
-      Serial.println("pumpa se vklopi za 1 min");
-
-      if (currentMillisORP - previousMillisMaxOffORP > cycleMaxOffORP*1000*60) {
-        
-        previousMillisMaxOn = millis();
-        regime = 21;
-      }
-    break;
-
-  case 21: 
-
-      pumpOn = false;
-      digitalWrite(PUMP_CONTACTOR,LOW);
-      oxygenEnabled = false;
-      ozoneEnabled = false;
-      Blynk.virtualWrite(53,21);
-
-      Serial.println("vse se izklopi za 2 min");
-
-      currentMillisORP = millis();
-
-      if (currentMillisORP - previousMillisMaxOn > cycleMaxOff*1000*60) {
-        
-        previousMillisMaxRead = millis();
-        regime = 22;
-      }
-    break;
-
-  case 22:
-
-      readORPValue = orpValue;
-      Blynk.virtualWrite(53,22);
-
-      currentMillisORP = millis();
-
-      Serial.println("bere se vrednost");
-
-      if (currentMillisORP - previousMillisMaxRead > cycleMaxRead*1000) regime = 0;
-
-    break;
-
-  case 50:
-
-      Blynk.virtualWrite(53,15);
-      firstIterationORP = true;
-    break;
-
-  }
 }
